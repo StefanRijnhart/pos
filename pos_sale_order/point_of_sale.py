@@ -28,6 +28,10 @@ from openerp.exceptions import Warning
 class SaleOrder(models.Model):
     _inherit = 'sale.order'
 
+    _sql_constraints = [('pos_reference_uniq',
+                         'unique (pos_reference, session_id)',
+                         'The pos_reference must be uniq per session')]
+
     pos_reference = fields.Char(string='Receipt Ref',
                                 readonly=True,
                                 copy=False,
@@ -44,39 +48,59 @@ class PosOrder(models.Model):
     _inherit = 'pos.order'
 
     @api.multi
-    def _prepare_sale_order_vals(self, ui_order):
+    def _prepare_product_onchange_params(self, order, line):
+        return [
+            (order['pricelist_id'], line['product_id']),
+            {
+                'qty': line['product_uom_qty'],
+                'uom': False,
+                'qty_uos': 0,
+                'uos': False,
+                'name': '',
+                'partner_id': order['partner_id'],
+                'lang': False,
+                'update_tax': True,
+                'date_order': False,
+                'packaging': False,
+                'fiscal_position': order.get('fiscal_position'),
+                'flag': False,
+                'warehouse_id': order['warehouse_id']
+            }]
+
+    @api.multi
+    def _merge_product_onchange(self, order, onchange_vals, line):
+        default_key = [
+            'name',
+            'product_uos_qty',
+            'product_uom',
+            'th_weight',
+            'product_uos']
+        for key in default_key:
+            line[key] = onchange_vals.get(key)
+        if onchange_vals.get('tax_id'):
+            line['tax_id'] = [[6, 0, onchange_vals['tax_id']]]
+
+    @api.multi
+    def _update_sale_order_line_vals(self, order, line):
         sale_line_obj = self.env['sale.order.line'].browse(False)
+        if line.get('qty'):
+            line['product_uom_qty'] = line.pop('qty')
+        args, kwargs = self._prepare_product_onchange_params(order, line)
+
+        vals = sale_line_obj.product_id_change_with_wh(*args, **kwargs)
+        self._merge_product_onchange(order, vals['value'], line)
+
+    @api.multi
+    def _prepare_sale_order_vals(self, ui_order):
         pos_session = self.env['pos.session'].browse(
             ui_order['pos_session_id'])
+        config = pos_session.config_id
         if not ui_order['partner_id']:
-            partner_id = pos_session.config_id.anonymous_partner_id.id
+            partner_id = config.anonymous_partner_id.id
             ui_order['partner_id'] = partner_id
-        for line in ui_order['lines']:
-            if line[2].get('qty'):
-                line[2]['product_uom_qty'] = line[2].pop('qty')
-            defaults = sale_line_obj.product_id_change(
-                pricelist=pos_session.config_id.pricelist_id.id,
-                product=line[2]['product_id'],
-                qty=line[2]['product_uom_qty'],
-                uom=False,
-                qty_uos=0,
-                uos=False,
-                name='',
-                partner_id=ui_order['partner_id'],
-                lang=False,
-                update_tax=True,
-                date_order=False,
-                packaging=False,
-                fiscal_position=False,
-                flag=False)['value']
-            line[2]['name'] = defaults.get('name')
-            line[2]['product_uos_qty'] = defaults.get('product_uos_qty')
-            line[2]['product_uom'] = defaults.get('product_uom')
-            line[2]['th_weight'] = defaults.get('th_weight')
-            line[2]['product_uos'] = defaults.get('product_uos')
-            if defaults.get('tax_id'):
-                line[2]['tax_id'] = [[6, 0, defaults['tax_id']]]
         return {
+            'pricelist_id': config.pricelist_id.id,
+            'warehouse_id': config.warehouse_id.id,
             'section_id': ui_order.get('section_id') or False,
             'user_id': ui_order.get('user_id') or False,
             'session_id': ui_order['pos_session_id'],
@@ -91,24 +115,21 @@ class PosOrder(models.Model):
         # Keep only new orders
         sale_obj = self.env['sale.order']
         submitted_references = [o['data']['name'] for o in orders]
-        existing_order_ids = sale_obj.search([
+        existing_orders = sale_obj.search([
             ('pos_reference', 'in', submitted_references),
         ])
-        existing_orders = sale_obj.read(existing_order_ids,
-                                        ['pos_reference'])
-        existing_references = set(
-            [o['pos_reference'] for o in existing_orders])
+        existing_references = existing_orders.mapped('pos_reference')
         orders_to_save = [o for o in orders if (
             o['data']['name'] not in existing_references)]
-
-        order_ids = []
+        order_ids = existing_orders.ids
 
         for tmp_order in orders_to_save:
             to_invoice = tmp_order['to_invoice']
             ui_order = tmp_order['data']
-            order = sale_obj.create(
-                self._prepare_sale_order_vals(ui_order),
-            )
+            vals = self._prepare_sale_order_vals(ui_order)
+            for line in vals['order_line']:
+                self._update_sale_order_line_vals(vals, line[2])
+            order = sale_obj.create(vals)
             for payments in ui_order['statement_ids']:
                 self.add_payment(
                     order.id,
@@ -218,12 +239,10 @@ class PosSession(models.Model):
     def _confirm_orders(self):
         sale_obj = self.env['sale.order']
         for session in self:
-            order_ids = []
             partner_id = session.config_id.anonymous_partner_id.id
             domains = {}
             domains = self._get_domains(domains, partner_id, session)
-            order_ids = sale_obj.search(domains)
-            orders = sale_obj.browse(order_ids)
+            orders = sale_obj.search(domains)
             orders.action_invoice_create(grouped=True)
             # Dummy call to workflow, will not create another invoice
             # but bind the new invoice to the subflow
@@ -234,5 +253,16 @@ class PosSession(models.Model):
 class PosConfig(models.Model):
     _inherit = 'pos.config'
 
-    anonymous_partner_id = fields.Many2one('res.partner',
-                                           string='Anonymous Partner')
+    anonymous_partner_id = fields.Many2one(
+        'res.partner',
+        string='Anonymous Partner')
+    warehouse_id = fields.Many2one(
+        'stock.warehouse',
+        string='Warehouse',
+        required=True)
+    stock_location_id = fields.Many2one(
+        'stock.location',
+        string='Stock Location',
+        related='warehouse_id.lot_stock_id',
+        readonly=True,
+        required=False)
