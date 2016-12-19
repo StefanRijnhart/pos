@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+
+    <t t-name="SaveUnpaidSaleWidget">
+        <button class="paypad-button">Save as sale order</button>
+    </t>
+
+    <t t-extend="Orderline">
+        <t t-jquery="span.product-name" t-operation="replace">
+            <span class="product-name">
+                <t t-esc="line.get_name()"/>
+            </span>
+        </t>
+    </t>
+
+    <t t-extend="ClientDetails">
+        <t t-jquery="div.client-details-left" t-operation="append">
+            <div class='sale-orders' t-if='partner.pos_sale_orders &amp;&amp; partner.pos_sale_orders.length'>
+                <table class='sale-orders'>
+                    <tr class='sale-orders-label'>
+                        <th colspan="3">Sale orders</th>
+                    </tr>
+                    <tr class='sale-order-header'>
+                        <th>Reference</th>
+                        <th>Date</th>
+                        <th style="vertical-align: right">Amount</th>
+                    </tr>
+                    <t t-foreach='partner.pos_sale_orders' t-as='sale'>
+                        <tr class='sale-order' t-att-data-id='sale.id'>
+                            <td><a t-att-title='sale.lines_as_text'><t t-esc='sale.name'/></a></td>
+                            <td><t t-esc='sale.date_order'/></td>
+                            <td><t t-esc='widget.format_currency(sale.amount_total)'/></td>
+                        </tr>
+                    </t>
+                </table>
+            </div>
+        </t>
+    </t>
+
+    <t t-extend="ClientListScreenWidget">
+        <t t-jquery="span.back" t-operation="after">
+            <input class="has_orders" type="checkbox"/><label class="has_orders">Has orders</label>
+        </t>
+    </t>
+
+</templates>

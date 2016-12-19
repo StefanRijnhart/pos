@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <template id="index" name="pos_create_sale_order assets" inherit_id="point_of_sale.index">
+            <xpath expr="//head" position="inside">
+                <script type="text/javascript" src="/pos_create_sale_order/static/src/js/pos_create_sale_order.js"></script>
+                <link href="/pos_create_sale_order/static/src/css/pos_create_sale_order.css" rel="stylesheet"/>
+            </xpath>
+        </template>
+    </data>
+</openerp>
