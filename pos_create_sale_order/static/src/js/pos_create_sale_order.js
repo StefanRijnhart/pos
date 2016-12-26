@@ -9,9 +9,10 @@ openerp.pos_create_sale_order = function(instance) {
             var self = this;
             origClientListScreenWidget.prototype.display_client_details.apply(this, arguments);
             if (visibility == 'show'){
-                self.$('.sale-orders').on('click', 'tr', function(){
+                self.$('.sale-orders').on('click', 'tr.sale-order', function(e){
+                    e.stopPropagation();
                     self.pos.fetch_sale_order(parseInt($(this).data('id')));
-                    self.pos.pos_widget.screen_selector.back();
+                    self.pos.pos_widget.screen_selector.set_current_screen('products');
                 });
             }
         },
@@ -118,7 +119,6 @@ openerp.pos_create_sale_order = function(instance) {
         },
         save_unpaid_sale: function() {
             // queue to save as unpaid sale order
-            // TODO: Print some kind of receipt?
             // and clear screen.
             var order = this.pos.get_order();
             if(order.get('orderLines').models.length === 0){
@@ -208,8 +208,11 @@ openerp.pos_create_sale_order = function(instance) {
 
     module.PosModel.prototype.load_sale_order = function(sale) {
         // TODO: prevent other customer to be selected on existing sale order
-        this.add_new_order();
         var order = this.get_order();
+        if (order.get('orderLines').length) {
+            this.add_new_order();
+            order = this.get_order();
+        }
         order.set_client(this.db.get_partner_by_id(sale.partner_id[0]));
         order.sale_id = sale.id;
         order.sale_name = sale.name;
@@ -229,6 +232,7 @@ openerp.pos_create_sale_order = function(instance) {
             order.get('orderLines').add(pos_line);
         });
         order.selectLine(order.getLastOrderline());
+        this.set('selectedOrder', order);
         return order;
     };
 
