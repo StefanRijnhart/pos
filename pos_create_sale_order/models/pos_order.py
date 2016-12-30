@@ -50,10 +50,8 @@ class PosOrder(models.Model):
         sale_line_obj = self.env['sale.order.line'].browse(False)
         if 'tax_ids' in line:  # pos_pricelist's support for fiscal positions
             line['tax_id'] = line.pop('tax_ids')
-        if line.get('qty'):
-            line['product_uom_qty'] = line.pop('qty')
+        line['product_uom_qty'] = line.pop('qty', 0)
         args, kwargs = self._prepare_product_onchange_params(order, line)
-
         vals = sale_line_obj.product_id_change_with_wh(*args, **kwargs)
         self._merge_product_onchange(order, vals['value'], line)
 
