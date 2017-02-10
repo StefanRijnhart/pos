@@ -45,6 +45,10 @@ openerp.pos_create_sale_order = function(instance) {
             return origPosDB.prototype.init(options);
         },
 
+        sale_order_fields: function(){
+            return ['name', 'date_order', 'amount_total', 'lines_as_text'];
+        },
+
         add_partners: function(partners){
             var all_order_ids = [];
             _.each(partners, function(partner){
@@ -53,7 +57,7 @@ openerp.pos_create_sale_order = function(instance) {
             var self = this;
             res = origPosDB.prototype.add_partners.apply(this, arguments);
             new instance.web.Model('sale.order').get_func("read")(
-                all_order_ids, ['name', 'date_order', 'amount_total', 'lines_as_text']).then(function(orders){
+                all_order_ids, self.sale_order_fields()).then(function(orders){
                     _.each(orders, function(order){
                         self.sale_orders[order.id] = order;
                     });
