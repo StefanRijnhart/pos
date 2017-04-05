@@ -3,6 +3,7 @@
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
 import logging
+from psycopg2 import OperationalError
 from openerp import models, api, _
 from openerp.exceptions import Warning as UserError
 
@@ -112,9 +113,11 @@ class PosOrder(models.Model):
                         try:
                             with self.env.cr.savepoint():
                                 order.pos_reconcile(st_lines)
+                        except OperationalError:
+                            raise
                         except Exception as e:
-                            order.message_post(
-                                body=('Error during reconciliation: %s' % e))
+                            order.message_post_from_pos(
+                                'Error during reconciliation: %s' % e)
                 # TODO: If to_invoice: confirm, create invoice
                 #     check ui callback!
                 # Otherwise, do we query order.confirm_sale_from_pos(ui_order)?
@@ -138,7 +141,7 @@ class PosOrder(models.Model):
             order = self.env['sale.order'].browse(ui_order['sale_id'])
             order.write(self._update_sale_order_vals(ui_order))
             if order.state not in ('draft', 'sent'):
-                order.message_post(
+                order.message_post_from_pos(
                     body=(
                         'Conflict between backend and POS. Could not write '
                         'the following data because the order is already '

@@ -1,6 +1,7 @@
 # coding: utf-8
 # © 2016 Akretion
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
+from psycopg2 import OperationalError
 from openerp import fields, models, api
 from openerp.exceptions import Warning as UserError
 from openerp.tools.translate import _
@@ -17,6 +18,15 @@ class SaleOrder(models.Model):
     session_id = fields.Many2one(
         'pos.session', string='POS Session', readonly=True, copy=False)
     lines_as_text = fields.Text(compute='compute_lines_as_text')
+
+    @api.multi
+    def message_post_from_pos(self, msg, partner_ids=None):
+        self.ensure_one()
+        if partner_ids is None:
+            partner_ids = []
+        if self.env.user.partner_id.id not in partner_ids:
+            partner_ids.append(self.env.user.partner_id.id)
+        return self.message_post(body=msg, partner_ids=partner_ids)
 
     @api.multi
     def compute_lines_as_text(self):
@@ -165,6 +175,8 @@ class SaleOrder(models.Model):
             try:
                 with self.env.cr.savepoint():
                     self.pos_process_single_picking(picking)
+            except OperationalError:
+                raise
             except Exception as e:
-                self.message_post(body=(
-                    'Error processing shipping %s: %s' % (picking.name, e)))
+                self.message_post_from_pos(
+                    'Error processing shipping %s: %s' % (picking.name, e))
