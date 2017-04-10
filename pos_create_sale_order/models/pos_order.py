@@ -142,10 +142,9 @@ class PosOrder(models.Model):
             order.write(self._update_sale_order_vals(ui_order))
             if order.state not in ('draft', 'sent'):
                 order.message_post_from_pos(
-                    body=(
-                        'Conflict between backend and POS. Could not write '
-                        'the following data because the order is already '
-                        'confirmed: %s' % ui_order))
+                    'Conflict between backend and POS. Could not write '
+                    'the following data because the order is already '
+                    'confirmed: %s' % ui_order)
                 return False
             order.write({
                 'pos_reference': ui_order['name'],
