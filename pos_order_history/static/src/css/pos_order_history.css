@@ -1,0 +1,36 @@
+.pos .clientorderlist-screen .clientorder-list{
+    font-size: 16px;
+    width: 100%;
+    line-height: 40px;
+}
+.pos .clientorderlist-screen .clientorder-list th,
+.pos .clientorderlist-screen .clientorder-list td {
+    padding: 0px 8px;
+}
+.pos .clientorderlist-screen .clientorder-list tr{
+    transition: all 150ms linear;
+    background: rgb(230,230,230);
+}
+.pos .clientorderlist-screen .clientorder-list thead > tr,
+.pos .clientorderlist-screen .clientorder-list tr:nth-child(even) {
+    background: rgb(247,247,247);
+}
+.pos .clientorderlist-screen .clientorder-list tr.highlight{
+    transition: all 150ms linear;
+    background: rgb(110,200,155) !important;
+    color: white;
+}
+.pos .clientorderlist-screen .clientorder-list tr.lowlight{
+    transition: all 150ms linear;
+    background: rgb(216, 238, 227);
+}
+.pos .clientorderlist-screen .clientorder-list tr.lowlight:nth-child(even){
+    transition: all 150ms linear;
+    background: rgb(227, 246, 237);
+}
+.pos .clientorderlist-screen .client-name {
+    position: absolute;
+    right: 16px;
+    font-size: 26px;
+    top: 20px;
+}

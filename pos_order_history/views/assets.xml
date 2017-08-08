@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp>
+    <data>
+        <template id="pos_order_history_assets" name="pos_order_history assets" inherit_id="point_of_sale.index">
+            <xpath expr="//script[@id='loading-script']" position="before">
+                <link rel="stylesheet" href="/pos_order_history/static/src/css/pos_order_history.css"/>
+                <script type="text/javascript" src="/pos_order_history/static/src/js/pos_order_history.js"></script>
+            </xpath>
+        </template>
+    </data>
+</openerp>

@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- vim:fdl=1:
+-->
+<templates id="template" xml:space="preserve">
+
+    <t t-extend="ClientDetails">
+        <t t-jquery="div.edit-buttons" t-operation="append">
+            <div class='button history'><i class='fa fa-shopping-cart' /></div>
+        </t>
+    </t>
+
+    <t t-name="ClientOrderListScreenWidget">
+        <div class="clientorderlist-screen screen">
+            <div class="screen-content">
+                <section class="top-content">
+                    <div>
+                        <span class='button back'>
+                            <i class='fa fa-angle-double-left'></i>
+                            Back to customers
+                        </span>
+                        <span class="client-name"/>
+                    </div>
+                </section>
+                <section class="full-content">
+                    <div class='window'>
+                        <section class='subwindow'>
+                            <div class='subwindow-container'>
+                                <div class='subwindow-container-fix touch-scrollable scrollable-y'>
+                                    <table class='clientorder-list'>
+                                        <thead>
+                                            <tr>
+                                                <th>Product</th>
+                                                <th>Qty</th>
+                                                <th>Date</th>
+                                                <th>Reference</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class='clientorder-list-contents'>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </t>
+
+    <t t-name="ClientOrderLine">
+        <tr class='clientorder-line'>
+            <td><t t-esc='orderline.name' /></td>
+            <td><t t-esc='orderline.qty' /></td>
+            <td><t t-esc='orderline.date' /></td>
+            <td><t t-esc='orderline.reference' /></td>
+        </tr>
+    </t>
+
+</templates>
