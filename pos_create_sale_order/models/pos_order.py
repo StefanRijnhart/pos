@@ -61,9 +61,6 @@ class PosOrder(models.Model):
         pos_session = self.env['pos.session'].browse(
             ui_order['pos_session_id'])
         config = pos_session.config_id
-        if not ui_order['partner_id']:
-            # TODO: don't create sale orders for these orders?
-            raise NotImplementedError
         warehouse = config.picking_type_id.warehouse_id
         if not warehouse:
             raise UserError(_(
@@ -78,6 +75,7 @@ class PosOrder(models.Model):
             'pos_reference': ui_order['name'],
             'partner_id': ui_order['partner_id'],
             'order_policy': 'manual',
+            'pos_process_picking': True,
         }
         partner = self.env['res.partner'].browse(ui_order['partner_id'])
         if partner.property_account_position:
@@ -95,37 +93,35 @@ class PosOrder(models.Model):
     @api.model
     def create_from_ui(self, ui_orders):
         print ui_orders
-        """ TODO: refactor into core methods _process_order and action_invoice,
-        so that it does not need to be overwritten (does not call super).
-        At least, create regular orders for orders without a partner. """
+        """ Create regular orders only for orders without a partner, and
+        create or update a sale order otherwise. """
         pos_orders = []
         for ui_order in ui_orders:
-            if (ui_order['data'].get('save_unpaid_sale') or
-                    ui_order['data'].get('sale_id')):
-                order = self.create_or_update_sale_order(ui_order)
-                if not order:
-                    continue
-                if ui_order['data'].get('statement_ids'):
-                    st_lines = self.env['account.bank.statement.line']
-                    for payment in ui_order['data']['statement_ids']:
-                        st_lines += order.pos_add_payment(payment)
-                    if st_lines:
-                        try:
-                            with self.env.cr.savepoint():
-                                order.pos_reconcile(st_lines)
-                        except OperationalError:
-                            raise
-                        except Exception as e:
-                            order.message_post_from_pos(
-                                'Error during reconciliation: %s' % e)
-                # TODO: If to_invoice: confirm, create invoice
-                #     check ui callback!
-                # Otherwise, do we query order.confirm_sale_from_pos(ui_order)?
-                # Or can we leave this to sale_automatic_workflow instead?
-                # Process pickings, also something to make configurable
-                order.pos_process_pickings()
-            else:
+            if not ui_order['partner_id']:
                 pos_orders.append(ui_order)
+                continue
+            order = self.create_or_update_sale_order(ui_order)
+            if not order:
+                continue
+            if ui_order['data'].get('statement_ids'):
+                st_lines = self.env['account.bank.statement.line']
+                for payment in ui_order['data']['statement_ids']:
+                    st_lines += order.pos_add_payment(payment)
+                if st_lines:
+                    try:
+                        with self.env.cr.savepoint():
+                            # Confirm order, confirm invoices and reconcile
+                            order.pos_reconcile(st_lines)
+                    except OperationalError:
+                        raise
+                    except Exception as e:
+                        order.message_post_from_pos(
+                            'Error during reconciliation: %s' % e)
+            # TODO: at this point, prepare the (hopefully reconciled) invoice
+            # to the customer. NB. queue, but don't send out synchronously to
+            # this uncommitted transaction. Check if the invoice was not sent
+            # out earlier on.
+            order.do_pos_process_pickings()
         return super(PosOrder, self).create_from_ui(pos_orders)
 
     @api.model
@@ -135,17 +131,21 @@ class PosOrder(models.Model):
         if sale_obj.search([
                 ('pos_reference', '=', pos_order['data']['name']),
                 ('session_id', '=', pos_order['data']['pos_session_id'])]):
+            # This order creation or update has already been processed.
+            # TODO: add UUID and keep track of processed order commands
+            # for all pos order commands in a generic module independent of
+            # this one (for sale and pos orders alike)
             return False
         vals = self._prepare_sale_order_vals(ui_order)
         if ui_order.get('sale_id'):
             order = self.env['sale.order'].browse(ui_order['sale_id'])
-            order.write(self._update_sale_order_vals(ui_order))
             if order.state not in ('draft', 'sent'):
                 order.message_post_from_pos(
                     'Conflict between backend and POS. Could not write '
                     'the following data because the order is already '
                     'confirmed: %s' % ui_order)
                 return False
+            order.write(self._update_sale_order_vals(ui_order))
             order.write({
                 'pos_reference': ui_order['name'],
                 'session_id': ui_order['pos_session_id']})

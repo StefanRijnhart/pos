@@ -18,9 +18,12 @@ class SaleOrder(models.Model):
     session_id = fields.Many2one(
         'pos.session', string='POS Session', readonly=True, copy=False)
     lines_as_text = fields.Text(compute='compute_lines_as_text')
+    pos_process_picking = fields.Boolean(copy=False)
 
     @api.multi
     def message_post_from_pos(self, msg, partner_ids=None):
+        """ Post a message on the sale order to the user and the given
+        partner_ids. Customer is excluded on purpose. """
         self.ensure_one()
         if partner_ids is None:
             partner_ids = []
@@ -30,23 +33,20 @@ class SaleOrder(models.Model):
 
     @api.multi
     def compute_lines_as_text(self):
+        """ Used in the representation of the order in the POS frontend """
         for sale in self:
             sale.lines_as_text = '\n'.join(
                 '%s x %s' % (line.product_uos_qty, line.name)
                 for line in sale.order_line)
 
-    @api.multi
-    def do_confirm_sale_from_pos(self, ui_order):
-        """ API hook to make sale confirmation optional. Refactor to config """
-        self.ensure_one()
-        return True
-
     @api.model
     def get_pos_order_fields(self):
+        """ TODO: docstring! """
         return ['partner_id', 'name']
 
     @api.model
     def get_pos_order_line_fields(self):
+        """ TODO: docstring! """
         return [
             'name',
             'product_id',
@@ -168,8 +168,10 @@ class SaleOrder(models.Model):
         picking.do_transfer()
 
     @api.multi
-    def pos_process_pickings(self):
+    def do_pos_process_pickings(self):
         self.ensure_one()
+        if not self.pos_process_picking:
+            return
         for picking in self.picking_ids.filtered(
                 lambda p: p.state not in ('done', 'cancel', 'draft')):
             try:
