@@ -57,9 +57,9 @@ class PosOrder(models.Model):
         self._merge_product_onchange(order, vals['value'], line)
 
     @api.multi
-    def _prepare_sale_order_vals(self, ui_order):
+    def _prepare_sale_order_vals(self, data):
         pos_session = self.env['pos.session'].browse(
-            ui_order['pos_session_id'])
+            data['pos_session_id'])
         config = pos_session.config_id
         warehouse = config.picking_type_id.warehouse_id
         if not warehouse:
@@ -69,25 +69,25 @@ class PosOrder(models.Model):
         res = {
             'pricelist_id': config.pricelist_id.id,
             'warehouse_id': warehouse.id,
-            'section_id': ui_order.get('section_id') or False,
-            'user_id': ui_order.get('user_id') or False,
-            'session_id': ui_order['pos_session_id'],
-            'pos_reference': ui_order['name'],
-            'partner_id': ui_order['partner_id'],
+            'section_id': data.get('section_id') or False,
+            'user_id': data.get('user_id') or False,
+            'session_id': data['pos_session_id'],
+            'pos_reference': data['name'],
+            'partner_id': data['partner_id'],
             'order_policy': 'manual',
             'pos_process_picking': True,
         }
-        partner = self.env['res.partner'].browse(ui_order['partner_id'])
+        partner = self.env['res.partner'].browse(data['partner_id'])
         if partner.property_account_position:
             res['fiscal_position'] = partner.property_account_position.id
         return res
 
     @api.multi
-    def _update_sale_order_vals(self, ui_order):
+    def _update_sale_order_vals(self, data):
         return {
-            'session_id': ui_order['pos_session_id'],
-            'pos_reference': ui_order['name'],
-            'partner_id': ui_order['partner_id'],
+            'session_id': data['pos_session_id'],
+            'pos_reference': data['name'],
+            'partner_id': data['partner_id'],
         }
 
     @api.model
@@ -97,7 +97,7 @@ class PosOrder(models.Model):
         create or update a sale order otherwise. """
         pos_orders = []
         for ui_order in ui_orders:
-            if not ui_order['partner_id']:
+            if not ui_order['data'].get('partner_id'):
                 pos_orders.append(ui_order)
                 continue
             order = self.create_or_update_sale_order(ui_order)
@@ -124,28 +124,28 @@ class PosOrder(models.Model):
     @api.model
     def create_or_update_sale_order(self, pos_order):
         sale_obj = self.env['sale.order']
-        ui_order = pos_order['data']
+        data = pos_order['data']
         if sale_obj.search([
-                ('pos_reference', '=', pos_order['data']['name']),
-                ('session_id', '=', pos_order['data']['pos_session_id'])]):
+                ('pos_reference', '=', data['name']),
+                ('session_id', '=', data['pos_session_id'])]):
             # This order creation or update has already been processed.
             # TODO: add UUID and keep track of processed order commands
             # for all pos order commands in a generic module independent of
             # this one (for sale and pos orders alike)
             return False
-        vals = self._prepare_sale_order_vals(ui_order)
-        if ui_order.get('sale_id'):
-            order = self.env['sale.order'].browse(ui_order['sale_id'])
+        vals = self._prepare_sale_order_vals(data)
+        if data.get('sale_id'):
+            order = self.env['sale.order'].browse(data['sale_id'])
             if order.state not in ('draft', 'sent'):
                 order.message_post_from_pos(
                     'Conflict between backend and POS. Could not write '
                     'the following data because the order is already '
-                    'confirmed: %s' % ui_order)
+                    'confirmed: %s' % data)
                 return False
-            order.write(self._update_sale_order_vals(ui_order))
+            order.write(self._update_sale_order_vals(data))
             order.write({
-                'pos_reference': ui_order['name'],
-                'session_id': ui_order['pos_session_id']})
+                'pos_reference': data['name'],
+                'session_id': data['pos_session_id']})
             order.order_line.unlink()
             _logger.debug('Updated sale order %s from POS', order.name)
         else:
@@ -153,13 +153,13 @@ class PosOrder(models.Model):
             _logger.debug('Created sale order %s from POS', order.name)
 
         # (re)create sale order lines
-        for line in ui_order['lines']:
+        for line in data['lines']:
             self._update_sale_order_line_vals(vals, line[2])
-        order.write({'order_line': ui_order['lines']})
+        order.write({'order_line': data['lines']})
 
         session = self.env['pos.session'].browse(
-            ui_order['pos_session_id'])
-        if session.sequence_number <= ui_order['sequence_number']:
+            data['pos_session_id'])
+        if session.sequence_number <= data['sequence_number']:
             session.write(
-                {'sequence_number': ui_order['sequence_number'] + 1})
+                {'sequence_number': data['sequence_number'] + 1})
         return order
