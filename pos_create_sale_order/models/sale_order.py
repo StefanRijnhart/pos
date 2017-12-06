@@ -21,6 +21,11 @@ class SaleOrder(models.Model):
     pos_process_picking = fields.Boolean(copy=False)
 
     @api.multi
+    def hook_sale_order_from_pos(self):
+        """ Override me """
+        self.ensure_one()
+
+    @api.multi
     def message_post_from_pos(self, msg, partner_ids=None):
         """ Post a message on the sale order to the user and the given
         partner_ids. Customer is excluded on purpose. """

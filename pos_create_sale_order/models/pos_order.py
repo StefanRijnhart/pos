@@ -117,11 +117,8 @@ class PosOrder(models.Model):
                     except Exception as e:
                         order.message_post_from_pos(
                             'Error during reconciliation: %s' % e)
-            # TODO: at this point, prepare the (hopefully reconciled) invoice
-            # to the customer. NB. queue, but don't send out synchronously to
-            # this uncommitted transaction. Check if the invoice was not sent
-            # out earlier on.
             order.do_pos_process_pickings()
+            order.hook_sale_order_from_pos()
         return super(PosOrder, self).create_from_ui(pos_orders)
 
     @api.model
