@@ -100,6 +100,13 @@ class PosOrder(models.Model):
             if not ui_order['data'].get('partner_id'):
                 pos_orders.append(ui_order)
                 continue
+            # Check if session is still valid
+            session = self.env['pos.session'].browse(
+                ui_order['data']['pos_session_id'])
+            if session.state in ('closing_control', 'closed'):
+                ui_order['data']['pos.session_id'] = self._get_valid_session(
+                    ui_order['data'])
+
             order = self.create_or_update_sale_order(ui_order)
             if not order:
                 continue
