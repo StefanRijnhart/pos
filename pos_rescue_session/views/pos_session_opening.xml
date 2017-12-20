@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp><data>
+
+    <record model="ir.ui.view" id="pos_session_opening_form_view">
+        <field name="model">pos.session.opening</field>
+        <field name="inherit_id" ref="point_of_sale.pos_session_opening_form_view"/>
+        <field name="arch" type="xml">
+            <field name="pos_config_id" position="attributes">
+                <attribute name="on_change">on_change_config(pos_config_id)</attribute>
+            </field>
+        </field>
+    </record>
+
+</data></openerp>

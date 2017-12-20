@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<openerp><data>
+
+    <template id="pos_rescue_session_assets"
+                  name="pos_rescue_session_assets"
+                  inherit_id="point_of_sale.assets_backend">
+            <xpath expr="." position="inside">
+                <script src="/pos_rescue_session/static/src/js/pos_rescue_session.js"
+                        type="text/javascript"></script>
+            </xpath>
+        </template>
+
+</data></openerp>
