@@ -92,7 +92,6 @@ class PosOrder(models.Model):
 
     @api.model
     def create_from_ui(self, ui_orders):
-        print ui_orders
         """ Create regular orders only for orders without a partner, and
         create or update a sale order otherwise. """
         pos_orders = []
@@ -132,13 +131,14 @@ class PosOrder(models.Model):
     def create_or_update_sale_order(self, pos_order):
         sale_obj = self.env['sale.order']
         data = pos_order['data']
-        if sale_obj.search([
+        if data.get('uuid'):
+            existing = sale_obj.search([('pos_uuids.name', '=', data['uuid'])])
+        else:
+            existing = sale_obj.search([
                 ('pos_reference', '=', data['name']),
-                ('session_id', '=', data['pos_session_id'])]):
+                ('session_id', '=', data['pos_session_id'])])
             # This order creation or update has already been processed.
-            # TODO: add UUID and keep track of processed order commands
-            # for all pos order commands in a generic module independent of
-            # this one (for sale and pos orders alike)
+        if existing:
             return False
         vals = self._prepare_sale_order_vals(data)
         if data.get('sale_id'):
@@ -169,4 +169,9 @@ class PosOrder(models.Model):
         if session.sequence_number <= data['sequence_number']:
             session.write(
                 {'sequence_number': data['sequence_number'] + 1})
+        if data.get('uuid'):
+            self.env['pos.uuid'].create({
+                'name': data['uuid'],
+                'sale_order': order.id,
+            })
         return order

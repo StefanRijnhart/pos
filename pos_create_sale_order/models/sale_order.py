@@ -19,6 +19,7 @@ class SaleOrder(models.Model):
         'pos.session', string='POS Session', readonly=True, copy=False)
     lines_as_text = fields.Text(compute='compute_lines_as_text')
     pos_process_picking = fields.Boolean(copy=False)
+    pos_uuids = fields.One2many('pos.uuid', 'sale_order', readonly=True)
 
     @api.multi
     def hook_sale_order_from_pos(self):

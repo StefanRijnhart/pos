@@ -75,6 +75,20 @@ openerp.pos_create_sale_order = function(instance) {
 
     origOrder = module.Order;
     module.Order = module.Order.extend({
+        initialize: function(attributes){
+            // Add a UUID to the order
+            res = origOrder.prototype.initialize.apply(this, arguments);
+            var buf = new Uint32Array(4);
+            crypto.getRandomValues(buf);
+            var idx = -1;
+            res['uuid'] = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                idx++;
+                var r = (buf[idx>>3] >> ((idx%8)*4))&15;
+                var v = c == 'x' ? r : (r&0x3|0x8);
+                return v.toString(16);
+            });
+            return res;
+        },
         // Propagate save_unpaid_sale property to backend
         export_as_JSON: function() {
             // Set sale id or draft sale order flag
@@ -84,6 +98,9 @@ openerp.pos_create_sale_order = function(instance) {
             }
             if (this.sale_id) {
                 res.sale_id = this.sale_id;
+            }
+            if (this.uuid) {
+                res.uuid = this.uuid;
             }
             return res;
         },
