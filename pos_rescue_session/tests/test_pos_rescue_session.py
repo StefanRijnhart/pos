@@ -53,8 +53,8 @@ class TestPosRescueSession(TransactionCase):
         self.env['pos.session']._register_hook()
         self.count = 0
         self.journal = self.env.ref('account.cash_journal')
-        self.session = self.open_session(
-            self.env.ref('point_of_sale.pos_config_main'))
+        self.config = self.env.ref('point_of_sale.pos_config_main')
+        self.session = self.open_session(self.config)
 
     def test_pos_rescue_session(self):
         """A rescue session is created for new orders for a closed sessions"""
@@ -78,5 +78,14 @@ class TestPosRescueSession(TransactionCase):
         rescue_session.signal_workflow('close')
         self.assertEqual(rescue_session.state, 'closed')
 
-    #def test_pos_rescue_session_new_session(self):
-
+    def test_pos_rescue_session_other_config(self):
+        """ When user opened a new session on other terminal """
+        self.session.signal_workflow('close')
+        self.assertEqual(self.session.state, 'closed')
+        config = self.config.copy()
+        self.open_session(config)
+        self.env['pos.order'].create_from_ui([self.get_order()])
+        rescue_session = self.env['pos.session'].search([
+            ('name', '=', '(RESCUE FOR %s)' % self.session.name)])
+        self.assertTrue(rescue_session)
+        self.assertEqual(rescue_session.order_ids.pos_reference, 'Test 1')

@@ -153,6 +153,7 @@ class PosSession(models.Model):
                 'Creating recovery session %s to save order %s',
                 session_name, order_name)
             vals['name'] = session_name
+            vals['rescue'] = True  # value is not stored automatically?
         return super(PosSession, self).create(vals)
 
     _constraints = [
