@@ -214,6 +214,11 @@ openerp.pos_create_sale_order = function(instance) {
             .then(function(partners){
                 self.db.add_partners(partners);
                 _.each(partners, function(partner){
+                    partner.address = (partner.street || '') +', '+
+                                      (partner.zip || '')    +' '+
+                                      (partner.city || '')   +', '+
+                                      (partner.country_id[1] || '');
+                    self.db.partner_search_string += self.db._partner_search_string(partner);
                     self.db.partner_by_id[partner.id] = partner;
                 });
                 if (partners.length > 0){
