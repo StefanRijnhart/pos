@@ -2,6 +2,7 @@
 # © 2016 Akretion
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl.html).
 
+from copy import deepcopy
 import logging
 from psycopg2 import OperationalError
 from openerp import models, api, _
@@ -95,7 +96,7 @@ class PosOrder(models.Model):
         """ Create regular orders only for orders without a partner, and
         create or update a sale order otherwise. """
         pos_orders = []
-        for ui_order in ui_orders:
+        for ui_order in deepcopy(ui_orders):
             if not ui_order['data'].get('partner_id'):
                 pos_orders.append(ui_order)
                 continue
